@@ -11,6 +11,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
+const isDev = import.meta.env.DEV;
+
 const MAX_LENGTH = 240;
 
 const localePresets = [
@@ -51,7 +53,7 @@ function localDateTimeFor(time: string): string {
 }
 
 export default function GlowForm() {
-  const [message, setMessage] = useState("Coffee..?.");
+  const [message, setMessage] = useState("Coffee..?");
   const [locale, setLocale] = useState("Palmer");
   const [timestamp, setTimestamp] = useState(currentTime);
   const [userEmail, setUserEmail] = useState("");
@@ -92,14 +94,6 @@ export default function GlowForm() {
   }, []);
 
 
-// Enforces bounds on every user input event + native HTML constraint
-const handleMessageChangeOld = (target: HTMLInputElement | HTMLTextAreaElement) => {
-  const value = target.value;
-  if (value.length <= MAX_LENGTH) {
-    setMessage(value);
-  }
-};
-
 const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
   const value = e.target.value;
   if (value.length <= MAX_LENGTH) {
@@ -109,7 +103,7 @@ const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAre
 
 
   function resetForm() {
-    setMessage("Coffee..?.");
+    setMessage("Coffee..?");
     setLocale("Palmer");
     setTimestamp(currentTime());
     setUserEmail("");
@@ -311,7 +305,7 @@ const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAre
                   required
                   type="email"
                   value={userEmail}
-                  readOnly={Boolean(userEmail)}
+                  readOnly={!isDev}
                 />
               </div>
 
@@ -371,7 +365,7 @@ const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAre
       </main>
 
       <footer className="border-t border-slate-200 bg-white px-4 py-5 text-center text-xs text-slate-500">
-        IGlow · Palette: #f78522, #BF8040, #406ABF, #BF4040, #950495
+        Meet&Greet &copy;Risto Ikonen 2026. Bun API with React And Vite.
       </footer>
     </div>
   );

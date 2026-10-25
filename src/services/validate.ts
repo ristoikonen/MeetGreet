@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const GlowPayloadSchema = z.object({
+export const GlowPayloadSchema = z.object({
   message: z
     .string()
     .trim()

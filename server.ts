@@ -6,11 +6,11 @@ import {
   handleGoogleSignOut,
   //extractIapUserEmail,
 } from "./src/services/verify";
-import {  type GlowPayload } from "./src/services/validate";
+import { GlowPayloadSchema, type GlowPayload } from "./src/services/validate";
 
 const port = Number(Bun.env.PORT || Bun.env.PORT || 3000);
-const host = Bun.env.VITE_APP_STAGE === "production" ? "0.0.0.0" : (Bun.env.HOST || "127.0.0.1");
-
+//const host = Bun.env.VITE_APP_STAGE === "production" ? "0.0.0.0" : (Bun.env.HOST || "127.0.0.1");
+const host = Bun.env.HOST || (Bun.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1");
 // Get public keys
 const IAP_JWKS_URL = new URL('https://www.gstatic.com/iap/verify/public_key-jwks');
 const iapJwks = createRemoteJWKSet(IAP_JWKS_URL);
@@ -67,20 +67,23 @@ const server = Bun.serve({
   hostname: host,
   port,
   routes: {
-     "/api/auth/session": {
+    "/healthz": {
+      GET: () => new Response("OK", { status: 200 }),
+    },
+    "/api/auth/session": {
     GET: async (req) => {
-    // Check IAP header first (production behind IAP)
-    const iapUser = await authenticateIapRequest(req);
-    if (iapUser) {
-      const authenticatedEmail = iapUser.email;
-      return Response.json({
-        user: {
-          email: iapUser.email,
-          name: iapUser.email.split("@")[0],
-          picture: null,
-        },
-      });
-    }
+      // Check IAP header first (production behind IAP)
+      const iapUser = await authenticateIapRequest(req);
+      if (iapUser) {
+        const authenticatedEmail = iapUser.email;
+        return Response.json({
+          user: {
+            email: iapUser.email,
+            name: iapUser.email.split("@")[0],
+            picture: null,
+          },
+        });
+      }
 
         // 2. Fall back to local cookie session (for local dev)
         return handleGoogleSession(req);
@@ -108,7 +111,17 @@ const server = Bun.serve({
           return Response.json({ error: "Request body must be a JSON object." }, { status: 400 });
         }
 
-        const payload = body as GlowPayload;
+        //const payload = body as GlowPayload;
+        const parsed = GlowPayloadSchema.safeParse(body);
+        if (!parsed.success) {
+          return Response.json(
+            { error: parsed.error.issues[0]?.message },
+            { status: 400 }
+          );
+        }
+        //GlowPayload
+        const payload = parsed.data;
+
 
         try {
           const result = await db.execute({
@@ -171,6 +184,21 @@ const server = Bun.serve({
   async fetch(req) {
     const url = new URL(req.url);
 
+    // Serve static files
+    const filePath = `./dist${url.pathname}`;
+    const file = Bun.file(filePath);
+    if (await file.exists()) {
+      return new Response(file);
+    }
+    // SPA Fallback: Any client-side route (/, /glow2) returns dist/index.html
+    const indexHtml = Bun.file("./dist/index.html");
+    if (await indexHtml.exists()) {
+      return new Response(indexHtml, {
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
+    }
+/*    
+
     // Core Session Check: Inspect headers for your existing authentication tokens
     const cookieHeader = req.headers.get("Cookie") || "";
     const hasActiveSession = cookieHeader.includes("session_token"); // Adjust string match to match your verify utility cookie key
@@ -199,23 +227,17 @@ const server = Bun.serve({
         else{
           return new Response("Not Found.", { status: 404 });
         }
-        /* Force unauthenticated browser traffic directly to the signin route
-        return new Response(null, {
-          status: 302,
-          headers: { "Location": "/signin.html" },
-        });
-        */
       }
     }
 
     // Serve your local frontend static web views safely out of your build/public directory
-    if (url.pathname === "/signin.html" || url.pathname === "/index.html") {
+    if (url.pathname === "/index.html") {
       const file = Bun.file(`./public${url.pathname}`);
       if (await file.exists()) {
         return new Response(file);
       }
     }
-
+*/
     return new Response("Not Found", { status: 404 });
         
   },
