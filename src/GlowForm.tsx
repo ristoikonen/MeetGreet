@@ -16,13 +16,13 @@ const isDev = import.meta.env.DEV;
 const MAX_LENGTH = 240;
 
 const localePresets = [
-  { name: "Palmer", label: "Palmer" },
-  { name: "Crace", label: "Crace" },
+  { name: "WhatsApp", label: "WhatsApp" },
+  { name: "Phone", label: "Phone" },
   { name: "Kaleen", label: "Kaleen" },
   { name: "Giralang", label: "Gira" },
   { name: "Gungahlin", label: "Gung" },
   { name: "Franklin", label: "Franklin" },
-  { name: "Harrison", label: "Harrison" },
+  { name: "Crace", label: "Crace" },
   { name: "Belconnen", label: "Belco" },
 ];
 
@@ -52,8 +52,60 @@ function localDateTimeFor(time: string): string {
   return date.toISOString();
 }
 
+
+function convertFinnishToAuTime(fiTimeStr: string): string | null {
+  const trimmed = fiTimeStr.trim();
+  const parts = trimmed.split(":");
+  const part0 = parts[0];
+  const part1 = parts[1];
+  if (!part0 || !part1) return null;
+
+  const h = part0.padStart(2, "0");
+  const m = part1.padStart(2, "0");
+  const s = (parts[2] ?? "00").padStart(2, "0");
+
+  const numH = Number(h);
+  const numM = Number(m);
+  const numS = Number(s);
+  if (Number.isNaN(numH) || Number.isNaN(numM) || Number.isNaN(numS)) return null;
+  if (numH < 0 || numH > 23 || numM < 0 || numM > 59 || numS < 0 || numS > 59) return null;
+
+  const now = new Date();
+  const helsinkiDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Helsinki",
+  }).format(now);
+
+  const offsetString = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Helsinki",
+    timeZoneName: "shortOffset",
+  }).format(now).split(" ").pop();
+
+  let offsetFormatted = "+02:00";
+  if (offsetString && offsetString.startsWith("GMT")) {
+    const match = offsetString.match(/GMT([+-])(\d+)(?::(\d+))?/);
+    if (match && match[1] && match[2]) {
+      const sign = match[1];
+      const hours = match[2].padStart(2, "0");
+      const mins = (match[3] ?? "00").padStart(2, "0");
+      offsetFormatted = `${sign}${hours}:${mins}`;
+    }
+  }
+
+  const isoInHelsinki = `${helsinkiDate}T${h}:${m}:${s}${offsetFormatted}`;
+  const utcDate = new Date(isoInHelsinki);
+  if (Number.isNaN(utcDate.getTime())) return null;
+
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Australia/Sydney",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(utcDate);
+}
+
 export default function GlowForm() {
-  const [message, setMessage] = useState("Coffee..?");
+  const [message, setMessage] = useState("Chat..?");
   const [locale, setLocale] = useState("Palmer");
   const [timestamp, setTimestamp] = useState(currentTime);
   const [userEmail, setUserEmail] = useState("");
@@ -102,8 +154,35 @@ const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAre
 };
 
 
+
+  function handleConvertFinnishTime() {
+    if (!timestamp || !timestamp.trim()) {
+      setStatus({
+        kind: "error",
+        message: "Enter a Finnish time (HH:MM or HH:MM:SS) in the input first.",
+      });
+      return;
+    }
+
+    const converted = convertFinnishToAuTime(timestamp);
+    if (!converted) {
+      setStatus({
+        kind: "error",
+        message: "Invalid time format. Please enter a valid Finnish time (HH:MM or HH:MM:SS).",
+      });
+      return;
+    }
+
+    const original = timestamp;
+    setTimestamp(converted);
+    setStatus({
+      kind: "success",
+      message: `Converted Finnish time (${original}) to Australian time (${converted}).`,
+    });
+  }
+
   function resetForm() {
-    setMessage("Coffee..?");
+    setMessage("Chat..?");
     setLocale("Palmer");
     setTimestamp(currentTime());
     setUserEmail("");
@@ -262,16 +341,14 @@ const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAre
                     Meet at...? Today's time only (HH:MM:SS)
                   </label>
                   <Button
-                    className="h-auto px-0 text-xs text-primary hover:bg-transparent hover:text-blue-700"
-                    onClick={() => {
-                      setTimestamp(currentTime());
-                      setStatus({ kind: "info", message: "Timestamp synced to your current local time." });
-                    }}
+                    className="h-auto px-0 text-xs text-primary hover:bg-transparent hover:text-blue-700 cursor-pointer"
+                    onClick={handleConvertFinnishTime}
                     type="button"
                     variant="ghost"
+                    title="Convert entered Finnish time to Australian time"
                   >
                     <Clock3 data-icon="inline-start" />
-                    Sync current time
+                    Change Finnish time to AU time
                   </Button>
                 </div>
                 <Input
