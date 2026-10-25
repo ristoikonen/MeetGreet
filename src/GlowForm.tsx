@@ -169,12 +169,6 @@ const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAre
     return true;
   }
 
-  async function GoToGlowPage()
-  {
-    location.replace("/glow2")
-    return true;
-  }
-
   const statusStyle = {
     info: "border-blue-200 bg-blue-50 text-blue-700",
     success: "border-emerald-200 bg-emerald-50 text-emerald-700",

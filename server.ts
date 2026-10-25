@@ -197,47 +197,7 @@ const server = Bun.serve({
         headers: { "Content-Type": "text/html; charset=utf-8" },
       });
     }
-/*    
 
-    // Core Session Check: Inspect headers for your existing authentication tokens
-    const cookieHeader = req.headers.get("Cookie") || "";
-    const hasActiveSession = cookieHeader.includes("session_token"); // Adjust string match to match your verify utility cookie key
-
-    // Default Root Path Handling
-    if (url.pathname === "/") {
-      const indexHtml = Bun.file("./dist/index.html");
-      console.log("default");
-      if (hasActiveSession) {
-        // Logged-in users skip authentication and land straight onto your application workspace
-    
-        if (await indexHtml.exists()) {
-          return new Response(indexHtml, {
-            headers: { "Content-Type": "text/html; charset=utf-8" },
-          });
-        }
-      } else {
-        if(Bun.env.VITE_APP_STAGE === 'development')
-        {
-          if (await indexHtml.exists()) {
-            return new Response(indexHtml, {
-              headers: { "Content-Type": "text/html; charset=utf-8" },
-            });
-          }
-        }
-        else{
-          return new Response("Not Found.", { status: 404 });
-        }
-      }
-    }
-
-    // Serve your local frontend static web views safely out of your build/public directory
-    if (url.pathname === "/index.html") {
-      const file = Bun.file(`./public${url.pathname}`);
-      if (await file.exists()) {
-        return new Response(file);
-      }
-    }
-*/
     return new Response("Not Found", { status: 404 });
         
   },
