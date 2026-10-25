@@ -9,18 +9,19 @@ import {
 import { GlowPayloadSchema, type GlowPayload } from "./src/services/validate";
 
 const port = Number(Bun.env.PORT || Bun.env.PORT || 3000);
-//const host = Bun.env.VITE_APP_STAGE === "production" ? "0.0.0.0" : (Bun.env.HOST || "127.0.0.1");
 const host = Bun.env.HOST || (Bun.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1");
+
 // Get public keys
-const IAP_JWKS_URL = new URL('https://www.gstatic.com/iap/verify/public_key-jwks');
+const IAP_JWKS_URL = new URL('https://www.gstatic.com/iap/verify/public_key-jwk');
 const iapJwks = createRemoteJWKSet(IAP_JWKS_URL);
 const issuer = "https://cloud.google.com/iap";
 
-const databaseUrl = Bun.env.TURSO_DATABASE_URL;
+const databaseUrl = Bun.env.TURSO_DATABASE_URL?.trim();
+const authToken = Bun.env.TURSO_AUTH_TOKEN?.trim();
 const db = databaseUrl
   ? createClient({
       url: databaseUrl,
-      authToken: Bun.env.TURSO_AUTH_TOKEN,
+      authToken: authToken,
     })
   : null;
 
@@ -33,35 +34,38 @@ export interface IapUser {
 
 export async function authenticateIapRequest(req: Request): Promise<IapUser | null> {
   const jwt = req.headers.get("x-goog-authenticated-user-jwt");
-  if (!jwt) {
-    return null;
-  }
+  const rawEmail = req.headers.get("x-goog-authenticated-user-email") || "";
+  const headerEmail = rawEmail.replace(/^accounts\.google\.com:/, "").trim();
 
-  const expectedAudience = Bun.env.IAP_AUDIENCE || EXPECTED_AUDIENCE;
+  const expectedAudience = Bun.env.IAP_AUDIENCE?.trim() || EXPECTED_AUDIENCE;
 
-  try {
-    // Verify the token using Google's IAP keys
-    const { payload } = await jwtVerify(jwt, iapJwks, {
-      issuer: "https://cloud.google.com/iap",
-      audience: expectedAudience || undefined,
-      algorithms: ["ES256"],
-    });
+  if (jwt) {
+    try {
+      // Verify the token using Google's IAP keys
+      const { payload } = await jwtVerify(jwt, iapJwks, {
+        issuer: "https://cloud.google.com/iap",
+        audience: expectedAudience || undefined,
+        algorithms: ["ES256"],
+      });
 
-    const email = typeof payload.email === "string" ? payload.email : "";
-    const sub = typeof payload.sub === "string" ? payload.sub : "";
+      const email = (typeof payload.email === "string" ? payload.email : "") || headerEmail;
+      const sub = typeof payload.sub === "string" ? payload.sub : "";
 
-    if (!email) {
-      return null;
+      if (email) {
+        return { email, sub };
+      }
+    } catch (error) {
+      console.error("IAP JWT verification failed:", error);
     }
-    //console.log('IAP Token verified successfully:', payload);
-    return { email, sub };
-  } catch (error) {
-    // Token signature mismatch, expired, or invalid audience
-    console.error("IAP JWT verification failed:", error);
-    return null;
   }
-}
 
+  // Fallback to IAP email header
+  if (headerEmail) {
+    return { email: headerEmail, sub: "" };
+  }
+
+  return null;
+}
 
 const server = Bun.serve({
   hostname: host,
