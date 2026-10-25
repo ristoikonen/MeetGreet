@@ -86,11 +86,9 @@ export default function App() {
           <span className="text-sm font-semibold tracking-wide text-slate-900">Meet & Greet</span>
           <div className="flex justify-end ml-auto">
             <a className="text-sm font-medium text-primary hover:underline" href="/glow2" >
-              Add new Meet 
+              Add new Meet
             </a>
-            <a className="text-sm font-medium text-primary hover:underline" href="/signin.html">
-                  Sign in
-            </a>
+
           </div>
         </div>
 

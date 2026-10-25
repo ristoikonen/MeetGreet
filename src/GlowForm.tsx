@@ -109,7 +109,7 @@ const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAre
 
 
   function resetForm() {
-    setMessage("System operating normally across regional grid.");
+    setMessage("Coffee..?.");
     setLocale("Palmer");
     setTimestamp(currentTime());
     setUserEmail("");
@@ -196,23 +196,10 @@ const handleMessageChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAre
             <span className="text-sm font-semibold tracking-wide text-slate-900">Meet&Greet</span>
           </div>
           <a
-            className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition-colors hover:text-primary"
-            href="/"
-          >
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            Activity
-          </a>
-          <a
             className="text-sm font-medium text-primary hover:underline"
             href="/"
           >
             Activity List
-          </a>
-          <a
-            className="text-sm font-medium text-primary hover:underline"
-            href="/signin.html"
-          >
-            Sign in
           </a>
         </div>
       </header>

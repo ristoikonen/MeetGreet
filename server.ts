@@ -6,6 +6,7 @@ import {
   handleGoogleSignOut,
   //extractIapUserEmail,
 } from "./src/services/verify";
+import {  type GlowPayload } from "./src/services/validate";
 
 const port = Number(Bun.env.PORT || Bun.env.PORT || 3000);
 const host = Bun.env.VITE_APP_STAGE === "production" ? "0.0.0.0" : (Bun.env.HOST || "127.0.0.1");
@@ -66,27 +67,7 @@ const server = Bun.serve({
   hostname: host,
   port,
   routes: {
-    "/api/auth/config": {
-      GET: () => {
-        const clientId = Bun.env.GOOGLE_CLIENT_ID?.trim();
-        if (!clientId) {
-          return Response.json(
-            { error: "Google sign-in is not configured." },
-            { status: 503 },
-          );
-        }
-        return Response.json({ clientId });
-      },
-    },
-    "/api/auth/google": {
-      POST: (req) => {
-        return handleGoogleSignIn(req);
-        },
-    },
-    "/api/auth/sessionOld": {
-      GET: (req) => handleGoogleSession(req),
-    },
-    "/api/auth/session": {
+     "/api/auth/session": {
     GET: async (req) => {
     // Check IAP header first (production behind IAP)
     const iapUser = await authenticateIapRequest(req);
@@ -127,44 +108,19 @@ const server = Bun.serve({
           return Response.json({ error: "Request body must be a JSON object." }, { status: 400 });
         }
 
-        const payload = body as Record<string, unknown>;
-        const { message, locale, timestamp, user_email, anonymous_id, created_at } = payload;
-        if (typeof message !== "string" || !message.trim() || message.length > 2000) {
-          return Response.json({ error: "Message is required and must be at most 2000 characters." }, { status: 400 });
-        }
-        if (typeof locale !== "string" || !locale.trim() || locale.length > 100) {
-          return Response.json({ error: "Locale is required and must be at most 100 characters." }, { status: 400 });
-        }
-        if (
-          typeof timestamp !== "string" ||
-          !/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/.test(timestamp)
-        ) {
-          return Response.json({ error: "Timestamp must use HH:MM:SS (24-hour time)." }, { status: 400 });
-        }
-        if (typeof user_email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user_email)) {
-          return Response.json({ error: "A valid user email is required." }, { status: 400 });
-        }
-        if (typeof anonymous_id !== "string" || !anonymous_id.trim() || anonymous_id.length > 200) {
-          return Response.json({ error: "A valid anonymous ID is required." }, { status: 400 });
-        }
-        if (
-          typeof created_at !== "string" ||
-          Number.isNaN(Date.parse(created_at))
-        ) {
-          return Response.json({ error: "A valid event date is required." }, { status: 400 });
-        }
+        const payload = body as GlowPayload;
 
         try {
           const result = await db.execute({
             sql: `INSERT INTO glow_logs (message, locale, timestamp, user_email, created_at, anonymous_id)
                   VALUES (?, ?, ?, ?, ?, ?)`,
             args: [
-              message.trim(),
-              locale.trim(),
-              timestamp,
-              user_email.trim(),
-              created_at,
-              anonymous_id,
+              payload.message,
+              payload.locale.trim(),
+              payload.timestamp,
+              payload.user_email,
+              payload.created_at,
+              payload.anonymous_id,
             ],
           });
           return Response.json(
@@ -181,7 +137,7 @@ const server = Bun.serve({
       GET: async () => {
         if (!db) {
           return Response.json(
-            { error: "Turso is not configured. Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN." },
+            { error: "No db." },
             { status: 503 },
           );
         }
@@ -221,19 +177,34 @@ const server = Bun.serve({
 
     // Default Root Path Handling
     if (url.pathname === "/") {
+      const indexHtml = Bun.file("./dist/index.html");
+      console.log("default");
       if (hasActiveSession) {
         // Logged-in users skip authentication and land straight onto your application workspace
-        return new Response(null, {
-          status: 302,
-          headers: { "Location": "/index.html" },
-        });
+    
+        if (await indexHtml.exists()) {
+          return new Response(indexHtml, {
+            headers: { "Content-Type": "text/html; charset=utf-8" },
+          });
+        }
       } else {
-
-        // Force unauthenticated browser traffic directly to the signin route
+        if(Bun.env.VITE_APP_STAGE === 'development')
+        {
+          if (await indexHtml.exists()) {
+            return new Response(indexHtml, {
+              headers: { "Content-Type": "text/html; charset=utf-8" },
+            });
+          }
+        }
+        else{
+          return new Response("Not Found.", { status: 404 });
+        }
+        /* Force unauthenticated browser traffic directly to the signin route
         return new Response(null, {
           status: 302,
           headers: { "Location": "/signin.html" },
         });
+        */
       }
     }
 
@@ -251,4 +222,4 @@ const server = Bun.serve({
 });
 
 
-console.log(`bunfetch running at http://localhost:${port}`);
+console.log(`meetgreet running at http://localhost:${port}`);
